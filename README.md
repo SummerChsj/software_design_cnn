@@ -3,6 +3,6 @@
 
 from recognize import Recognize_one
 
-result=Recognize_one(r"D:\Documents\python_code\test_proj\person_scene_data\train\scene\scene_6.jpg")#add the path of img
+result=Recognize_one("path")#add the path of img
 
 print(result) #返回识别结果
