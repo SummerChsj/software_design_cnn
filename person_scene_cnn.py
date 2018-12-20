@@ -5,17 +5,17 @@ from torch.autograd import Variable
 from torchvision import transforms, datasets, models
 import time
 import os
-import numpy as np
-import torchvision
-import matplotlib.pyplot as plt
+# import numpy as np
+# import torchvision
+# import matplotlib.pyplot as plt
 
 #person=0 scene=1
 
-BATCH_SIZE = 8 ############if data is larger,chang it!
+BATCH_SIZE = 50 ############if data is larger,chang it!
 LR = 0.001
 EPOCHES = 10#################增加epoch，提高准确率
 
-USE_GPU = False #######if you use gpu,make it to be True
+USE_GPU = True #######if you use gpu,make it to be True
 if USE_GPU:
     gpu_status = torch.cuda.is_available()
 else:
@@ -43,7 +43,7 @@ data_transforms = {
     ])
 }
 
-data_dir = 'D:/Documents/python_code/test_proj/person_scene_data/'  ###############wait for change
+data_dir = 'D:/Documents/python_code/test_proj/person_scene_data/'  ###############your path
 # trans data
 image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x), data_transforms[x]) for x in ['train', 'val']}
 # load data
@@ -111,90 +111,90 @@ start_time = time.time()
 best_model_wts = model.state_dict()
 best_acc = 0.0
 train_loss, test_loss, train_acc, test_acc, time_p = [], [], [], [], []
+
 for epoch in range(EPOCHES):
-    # Each epoch has a training and validation phase
-    for phase in ['train', 'val']:
-        if phase == 'train':
-            scheduler.step()
-            model.train(True)
+
+    scheduler.step()
+    model.train(True)
+
+    running_loss = 0.0
+    running_corrects = 0
+
+    # Iterate over data.
+    for data in data_loaders['train']:
+        inputs, labels = data
+
+        if gpu_status:
+            inputs = Variable(inputs.cuda())
+            labels = Variable(labels.cuda())
         else:
-            model.train(False)
-        running_loss = 0.0
-        running_corrects = 0
+            inputs, labels = Variable(inputs), Variable(labels)
 
-        # Iterate over data.
-        for data in data_loaders[phase]:
-            inputs, labels = data
+        optimizer.zero_grad()
 
+        outputs = model(inputs)#数据输入
 
-            if gpu_status:
-                inputs = Variable(inputs.cuda())
-                labels = Variable(labels.cuda())
-            else:
-                inputs, labels = Variable(inputs), Variable(labels)
+        preds = torch.max(outputs.data, 1)[1]
+        loss = loss_f(outputs, labels)
+        loss.backward()
+        optimizer.step()
 
-            optimizer.zero_grad()
+        running_loss += loss.item()*len(labels)
 
-            outputs = model(inputs)#数据输入
-
-            preds = torch.max(outputs.data, 1)[1]
-            loss = loss_f(outputs, labels)
-            if phase == 'train':
-                loss.backward()
-                optimizer.step()
-
-            running_loss += loss.item()*len(labels)
-
-            running_corrects += torch.sum(preds == labels.data)
+        running_corrects += torch.sum(preds == labels.data)
 
 
-        epoch_loss = running_loss / data_sizes[phase]
-        epoch_acc = running_corrects.numpy() / data_sizes[phase]
+    epoch_loss = running_loss / data_sizes['train']
+    epoch_acc = running_corrects.numpy() / data_sizes['train']
 
-        if phase == 'val':
-            test_loss.append(epoch_loss)
-            test_acc.append(epoch_acc)
-        else:
-            train_loss.append(epoch_loss)
-            train_acc.append(epoch_acc)
+    train_loss.append(epoch_loss)
+    train_acc.append(epoch_acc)
 
-        if phase == 'val' and epoch_acc > best_acc:
-            best_acc = epoch_acc
-            best_model_wts = model.state_dict()
+    # if phase == 'val' and epoch_acc > best_acc:
+    #     best_acc = epoch_acc
+    #     best_model_wts = model.state_dict()
 
     time_elapsed=time.time() - start_time
     time_p.append(time_elapsed)
-    print("[{}/{}] train_loss:{:.3f}||test_loss:{:.3f}||train_acc:{:.3f}||test_acc:{:.3f}||time passed:{:.0f}m {:.0f}s".format(epoch+1, EPOCHES,
-                                               train_loss[-1], test_loss[-1], train_acc[-1], test_acc[-1],time_elapsed // 60, time_elapsed % 60))
+    # print("[{}/{}] train_loss:{:.3f}||test_loss:{:.3f}||train_acc:{:.3f}||test_acc:{:.3f}||time passed:{:.0f}m {:.0f}s".format(epoch+1, EPOCHES,
+    #                                            train_loss[-1], test_loss[-1], train_acc[-1], test_acc[-1],time_elapsed // 60, time_elapsed % 60))
+    print("[{}/{}] train_loss:{:.3f}||train_acc:{:.3f}||time passed:{:.0f}m {:.0f}s".format(epoch + 1, EPOCHES,
+                                            train_loss[-1],  train_acc[-1], time_elapsed // 60, time_elapsed % 60))
 
 
-    x=list(range(1,EPOCHES+1))
+start_time=time.time()
 
-    plt.figure(num=1)
-    # plt.clf()
-    plt.plot(x[0:epoch+1],train_acc,label='train_acc')
-    plt.plot(x[0:epoch+1],test_acc,label='test_acc')
-    plt.xlabel('epoches')
-    plt.ylabel('acc')
-    plt.title('Accuracy')
-    plt.legend()
-    plt.show()
+model.train(False)
+running_loss = 0.0
+running_corrects = 0
 
-    plt.figure(num=2)
-    # plt.clf()
-    plt.plot(x[0:epoch + 1], train_loss, label='train_loss')
-    plt.plot(x[0:epoch + 1], test_loss, label='test_loss')
-    plt.xlabel('epoches')
-    plt.ylabel('loss')
-    plt.title('Loss')
-    plt.legend()
-    plt.show()
+# Iterate over data.
+for data in data_loaders['val']:
+    inputs, labels = data
 
-time_elapsed = time.time() - start_time
-print('Training complete in {:.0f}m {:.0f}s'.format(
-    time_elapsed // 60, time_elapsed % 60))
-print('Best val Acc: {:4f}'.format(best_acc))
 
-# save best model weights
-#model.load_state_dict(best_model_wts)
-#torch.save(model.state_dict(), "./person_scene_cnn.pth")
+    if gpu_status:
+        inputs = Variable(inputs.cuda())
+        labels = Variable(labels.cuda())
+    else:
+        inputs, labels = Variable(inputs), Variable(labels)
+
+    #optimizer.zero_grad()
+
+    outputs = model(inputs)#数据输入
+
+    preds = torch.max(outputs.data, 1)[1]
+    loss = loss_f(outputs, labels)
+
+    running_loss += loss.item()*len(labels)
+
+    running_corrects += torch.sum(preds == labels.data)
+
+
+recognize_loss =running_loss / data_sizes['val']
+recognize_acc = running_corrects.numpy() / data_sizes['val']
+recognize_time=time.time()-start_time
+
+print("recognize_loss: %s||recognize_acc: %s||recognize_time: %sm %ss" %(recognize_loss,recognize_acc,recognize_time//60,recognize_time%60))
+
+torch.save(model.state_dict(), "./person_scene_cnn.pth")
