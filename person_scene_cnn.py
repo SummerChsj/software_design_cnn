@@ -11,7 +11,7 @@ import os
 
 #person=0 scene=1
 
-BATCH_SIZE = 50 ############if data is larger,chang it!
+BATCH_SIZE = 20
 LR = 0.001
 EPOCHES = 10#################增加epoch，提高准确率
 
@@ -145,7 +145,10 @@ for epoch in range(EPOCHES):
 
 
     epoch_loss = running_loss / data_sizes['train']
-    epoch_acc = running_corrects.numpy() / data_sizes['train']
+    if gpu_status:
+        epoch_acc = running_corrects.cpu().numpy() / data_sizes['train']
+    else:  
+        epoch_acc = running_corrects.numpy() / data_sizes['train']
 
     train_loss.append(epoch_loss)
     train_acc.append(epoch_acc)
@@ -161,6 +164,7 @@ for epoch in range(EPOCHES):
     print("[{}/{}] train_loss:{:.3f}||train_acc:{:.3f}||time passed:{:.0f}m {:.0f}s".format(epoch + 1, EPOCHES,
                                             train_loss[-1],  train_acc[-1], time_elapsed // 60, time_elapsed % 60))
 
+torch.save(model.state_dict(), "./person_scene_cnn.pth")
 
 start_time=time.time()
 
@@ -192,9 +196,11 @@ for data in data_loaders['val']:
 
 
 recognize_loss =running_loss / data_sizes['val']
-recognize_acc = running_corrects.numpy() / data_sizes['val']
+if gpu_status:
+    recognize_acc = running_corrects.cpu().numpy() / data_sizes['val']
+else:     
+    recognize_acc = running_corrects.numpy() / data_sizes['val']
+
 recognize_time=time.time()-start_time
 
 print("recognize_loss: %s||recognize_acc: %s||recognize_time: %sm %ss" %(recognize_loss,recognize_acc,recognize_time//60,recognize_time%60))
-
-torch.save(model.state_dict(), "./person_scene_cnn.pth")
