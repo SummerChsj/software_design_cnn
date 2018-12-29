@@ -61,6 +61,8 @@ model = CNN(3, 2)
 
 if os.path.exists('./person_scene_cnn.pth'): #############继续训练
     model.load_state_dict(torch.load('./person_scene_cnn.pth'))
+else:
+    print('please get the person_scene_cnn.pth file')
 
 model.train(False)
 
